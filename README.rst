@@ -4,7 +4,7 @@ barriers
 
 Python decorators for including/removing type checks, value/bounds checks, and other code blocks within the compiled bytecode of functions and methods.
 
-|pypi| |readthedocs|
+|pypi| |readthedocs| |actions| |coveralls|
 
 .. |pypi| image:: https://badge.fury.io/py/barriers.svg
    :target: https://badge.fury.io/py/barriers
@@ -13,6 +13,14 @@ Python decorators for including/removing type checks, value/bounds checks, and o
 .. |readthedocs| image:: https://readthedocs.org/projects/barriers/badge/?version=latest
    :target: https://barriers.readthedocs.io/en/latest/?badge=latest
    :alt: Read the Docs documentation status.
+
+.. |actions| image:: https://github.com/reity/barriers/workflows/lint-test-cover-docs/badge.svg
+   :target: https://github.com/reity/barriers/actions/workflows/lint-test-cover-docs.yml
+   :alt: GitHub Actions status.
+
+.. |coveralls| image:: https://coveralls.io/repos/github/reity/barriers/badge.svg?branch=main
+   :target: https://coveralls.io/github/reity/barriers?branch=main
+   :alt: Coveralls test coverage summary.
 
 Installation and Usage
 ----------------------
