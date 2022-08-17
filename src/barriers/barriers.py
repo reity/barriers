@@ -68,12 +68,60 @@ class barriers(dict): # pylint: disable=too-few-public-methods
     3
     >>> f(-1, -2)
     -3
+
+    It is possible to explicitly supply the namespace (such as the one that
+    corresponds to the local scope) to the decorator. This may be necessary to
+    do if the body of the function contains symbols that only appear in the
+    supplied namespace. For example, suppose the function below has been
+    defined.
+
+    >>> def g(x, y):
+    ...     return x + y
+
+    The definition of the function ``f`` below refers to the function ``g``
+    defined above. However, invoking the decorated function raises an exception.
+
+    >>> @barriers
+    ... def f(x: int, y: int) -> int:
+    ...
+    ...     barriers
+    ...     if x < 0 or y < 0:
+    ...         raise ValueError('inputs must be nonnegative')
+    ...
+    ...     return g(x, y)
+    ...
+    >>> f(1, 2)
+    Traceback (most recent call last):
+      ...
+    NameError: name 'g' is not defined
+
+    The :obj:`__getitem__` method allows bracket notation to be used
+    in order to supply a symbol table for a namespace.
+
+    >>> @barriers[locals()]
+    ... def f(x: int, y: int) -> int:
+    ...
+    ...     barriers
+    ...     if x < 0 or y < 0:
+    ...         raise ValueError('inputs must be nonnegative')
+    ...
+    ...     return g(x, y)
+    ...
+    >>> f(1, 2)
+    3
+    >>> f(-1, -2)
+    -3
+
+    Note that the :obj:`__call__` method uses the namespace returned by
+    :obj:`globals`. Thus, the decorator ``@barriers`` is equivalent to
+    ``@barriers[globals()]``. However, in certain situations (*e.g.*, in
+    doctests) this is not sufficient.
     """
     def __init__(self: barriers):
         super().__init__()
         globals()['barriers'] = self
 
-    def _transform(self: barriers, function: Callable, scope: dict) -> Callable:
+    def _transform(self: barriers, function: Callable, namespace: dict) -> Callable:
         """
         Transform a function by removing any statement within the body that has a
         marker that appears immediately above it.
@@ -101,24 +149,40 @@ class barriers(dict): # pylint: disable=too-few-public-methods
 
         a.body[0].body = statements_
 
-        # Compile and execute the transformed function definition within a scope.
+        # Compile and execute the transformed function definition given a
+        # namespace symbol table.
         exec( # pylint: disable=exec-used
             compile(a, '<string>', 'exec'),
-            scope
+            namespace
         )
 
-        return scope[function.__name__]
+        return namespace[function.__name__]
+
+    def __getitem__(self: barriers, namespace: dict) -> Callable[[Callable], Callable]:
+        """
+        Decorator that parses a function and removes any marked code blocks as
+        specified within this instance.
+        """
+        def decorator(function: Callable, namespace: dict = namespace) -> Callable:
+            """
+            Decorator that is applied to the function to be transformed.
+            """
+            namespace = dict(namespace.items())
+            namespace['barriers'] = _substitute() # Avoid transforming recursively.
+            return self._transform(function, namespace)
+
+        return decorator
 
     def __call__(self: barriers, function: Callable) -> Callable:
         """
         Decorator that parses a function and removes any marked code blocks as
         specified within this instance.
         """
-        scope = dict(globals().items()) # Use the global scope by default.
-        scope['barriers'] = _substitute() # Avoid transforming recursively.
-        return self._transform(function, scope)
+        namespace = dict(globals().items()) # Use the global namespace by default.
+        namespace['barriers'] = _substitute() # Avoid transforming recursively.
+        return self._transform(function, namespace)
 
-class _substitute: # pylint: disable=too-few-public-methods,invalid-name
+class _substitute(barriers): # pylint: disable=invalid-name # Exclude from documentation.
     """
     Class for creating placeholder instances of :obj:`~barriers.barriers.barriers`
     that have no effect. Instances of this class are introduced in place of the
@@ -126,7 +190,13 @@ class _substitute: # pylint: disable=too-few-public-methods,invalid-name
     :obj:`~barriers.barriers.barriers` instance during the execution of a modified
     abstract syntax tree.
     """
-    def __call__(self: barriers, function: Callable) -> Callable:
+    def __getitem__(self: _substitute, namespace: dict) -> Callable[[Callable], Callable]:
+        """
+        Discard supplied namespace and return a decorator.
+        """
+        return lambda function: function
+
+    def __call__(self: _substitute, function: Callable) -> Callable:
         """
         Return the supplied function.
         """
