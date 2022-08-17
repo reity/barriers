@@ -4,11 +4,15 @@ barriers
 
 Python decorators for including/removing type checks, value/bounds checks, and other code blocks within the compiled bytecode of functions and methods.
 
-|pypi|
+|pypi| |readthedocs|
 
 .. |pypi| image:: https://badge.fury.io/py/barriers.svg
    :target: https://badge.fury.io/py/barriers
    :alt: PyPI version and link.
+
+.. |readthedocs| image:: https://readthedocs.org/projects/barriers/badge/?version=latest
+   :target: https://barriers.readthedocs.io/en/latest/?badge=latest
+   :alt: Read the Docs documentation status.
 
 Installation and Usage
 ----------------------
@@ -23,9 +27,17 @@ The library can be imported in the usual ways::
 
 Development
 -----------
-All installation and development dependencies are fully specified in ``pyproject.toml``. The ``project.optional-dependencies`` object is used to `specify optional requirements <https://peps.python.org/pep-0621>`__ for various development tasks. This makes it possible to specify additional options (such as ``test``, ``lint``, and so on) when performing installation using `pip <https://pypi.org/project/pip>`__::
+All installation and development dependencies are fully specified in ``pyproject.toml``. The ``project.optional-dependencies`` object is used to `specify optional requirements <https://peps.python.org/pep-0621>`__ for various development tasks. This makes it possible to specify additional options (such as ``docs``, ``lint``, and so on) when performing installation using `pip <https://pypi.org/project/pip>`__::
 
-    python -m pip install .[test,lint]
+    python -m pip install .[docs,lint]
+
+Documentation
+^^^^^^^^^^^^^
+The documentation can be generated automatically from the source files using `Sphinx <https://www.sphinx-doc.org>`__::
+
+    python -m pip install .[docs]
+    cd docs
+    sphinx-apidoc -f -E --templatedir=_templates -o _source .. && make html
 
 Testing and Conventions
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -56,6 +68,11 @@ Publishing
 This library can be published as a `package on PyPI <https://pypi.org/project/barriers>`__ by a package maintainer. First, install the dependencies required for packaging and publishing::
 
     python -m pip install .[publish]
+
+Ensure that the correct version number appears in ``pyproject.toml``, and that any links in this README document to the Read the Docs documentation of this package (or its dependencies) have appropriate version numbers. Also ensure that the Read the Docs project for this library has an `automation rule <https://docs.readthedocs.io/en/stable/automation-rules.html>`__ that activates and sets as the default all tagged versions. Create and push a tag for this version (replacing ``?.?.?`` with the version number)::
+
+    git tag ?.?.?
+    git push origin ?.?.?
 
 Remove any old build/distribution files. Then, package the source into a distribution archive::
 
