@@ -40,13 +40,20 @@ class barriers(dict): # pylint: disable=too-few-public-methods
     explicitly assigned to the variable ``barriers``.
 
     >>> from barriers import barriers
-    >>> barriers = barriers()
+    >>> barriers = barriers(False) # Remove marked statements (i.e., "disable barriers").
 
     The :obj:`~barriers.barriers.barriers` instance defined above is now a
     decorator that transforms any decorated function by removing any statement
     that appears directly below any instance of a *marker*. A statement can be
     designated for automatic removal by placing a marker -- the ``barriers``
     variable -- on the line directly above that statement.
+
+    The ``False`` parameter in the expression ``barriers(False)`` above should
+    be interpreted to mean that *barriers are disabled* (*i.e.*, that the
+    barrier statements should be removed). The default value for this optional
+    parameter is ``True``; this should be interpreted to mean that *barriers
+    are enabled* (and, thus, that marked statements should not be removed from
+    decorated functions).
 
     >>> @barriers
     ... def f(x: int, y: int) -> int:
@@ -116,9 +123,30 @@ class barriers(dict): # pylint: disable=too-few-public-methods
     :obj:`globals`. Thus, the decorator ``@barriers`` is equivalent to
     ``@barriers[globals()]``. However, in certain situations (*e.g.*, in
     doctests) this is not sufficient.
+
+    For completess, the example below demonstrates that marked statements
+    are not removed when the default configuration is used.
+
+    >>> from barriers import barriers
+    >>> barriers = barriers() # Equivalent to ``barriers(True)``.
+    >>> def f(x: int, y: int) -> int:
+    ...
+    ...     barriers
+    ...     if x < 0 or y < 0:
+    ...         raise ValueError('inputs must be nonnegative')
+    ...
+    ...     return x + y
+    ...
+    >>> f(-1, -2)
+    Traceback (most recent call last):
+      ...
+    ValueError: inputs must be nonnegative
     """
-    def __init__(self: barriers):
+    def __init__(self: barriers, configuration: bool = True):
         super().__init__()
+        self.configuration = configuration
+
+        # Only one instance of this class should be created in a module.
         globals()['barriers'] = self
 
     def _transform(self: barriers, function: Callable, namespace: dict) -> Callable:
@@ -130,24 +158,25 @@ class barriers(dict): # pylint: disable=too-few-public-methods
         a = ast.parse(textwrap.dedent(inspect.getsource(function)))
 
         # Transform the abstract syntax tree.
-        statements = a.body[0].body
-        statements_ = [] # New function body.
+        if self.configuration is not True: # Either ``False`` or more granular dictionary.
+            statements = a.body[0].body
+            statements_ = [] # New function body.
 
-        i = 0
-        while i < len(statements):
-            if (
-                isinstance(statements[i], ast.Expr) and
-                isinstance(statements[i].value, ast.Name) and
-                (statements[i].value.id == 'barriers') and
-                i <= (len(statements) - 1) # Remove mark if it appears last.
-            ):
-                i += 2
-                continue
+            i = 0
+            while i < len(statements):
+                if (
+                    isinstance(statements[i], ast.Expr) and
+                    isinstance(statements[i].value, ast.Name) and
+                    (statements[i].value.id == 'barriers') and
+                    i <= (len(statements) - 1) # Remove mark if it appears last.
+                ):
+                    i += 2
+                    continue
 
-            statements_.append(statements[i])
-            i += 1
+                statements_.append(statements[i])
+                i += 1
 
-        a.body[0].body = statements_
+            a.body[0].body = statements_
 
         # Compile and execute the transformed function definition given a
         # namespace symbol table.
