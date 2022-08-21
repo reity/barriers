@@ -1,5 +1,5 @@
 """
-Python decorators for including/removing type checks, value/bounds checks, and
+Python decorator for including/removing type checks, value/bounds checks, and
 other code blocks within the compiled bytecode of functions and methods.
 """
 from __future__ import annotations
@@ -102,18 +102,31 @@ class barriers(dict): # pylint: disable=too-few-public-methods
       ...
     NameError: name 'g' is not defined
 
-    The :obj:`__getitem__` method allows bracket notation to be used
-    in order to supply a symbol table for a namespace.
+    The :obj:`__getitem__` method allows bracket notation to be used in order
+    to supply a symbol table for a namespace. The example below includes two
+    syntactic variants of the decorator in order to accommodate Python 3.7 and
+    Python 3.8.
 
-    >>> @barriers[locals()]
-    ... def f(x: int, y: int) -> int:
+    >>> import sys
+    >>> if sys.version_info >= (3, 9):
+    ...     @barriers[locals()]
+    ...     def f(x: int, y: int) -> int:
     ...
-    ...     barriers
-    ...     if x < 0 or y < 0:
-    ...         raise ValueError('inputs must be nonnegative')
+    ...         barriers
+    ...         if x < 0 or y < 0:
+    ...             raise ValueError('inputs must be nonnegative')
     ...
-    ...     return g(x, y)
+    ...         return g(x, y)
+    ... else:
+    ...     # The syntax below is compatible with Python 3.7 and Python 3.8.
+    ...     @barriers.__getitem__(locals())
+    ...     def f(x: int, y: int) -> int:
     ...
+    ...         barriers
+    ...         if x < 0 or y < 0:
+    ...             raise ValueError('inputs must be nonnegative')
+    ...
+    ...         return g(x, y)
     >>> f(1, 2)
     3
     >>> f(-1, -2)
