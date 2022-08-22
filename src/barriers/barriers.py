@@ -76,6 +76,36 @@ class barriers(dict): # pylint: disable=too-few-public-methods
     >>> f(-1, -2)
     -3
 
+    It is also possible to use the string literal ``'barriers'`` as a marker.
+
+    >>> @barriers
+    ... def g(x: int, y: int) -> int:
+    ...
+    ...     'barriers'
+    ...     if x < 0 or y < 0:
+    ...         raise ValueError('inputs must be nonnegative')
+    ...
+    ...     return x + y
+    ...
+
+    This may be preferable because string literals appearing as statements do
+    not contribute to the size of the compiled bytecode of a function (as shown
+    below).
+
+    >>> def f(x: int, y: int) -> int:
+    ...     barriers
+    ...     if x < 0 or y < 0:
+    ...         raise ValueError('inputs must be nonnegative')
+    ...     return x + y
+    >>> def g(x: int, y: int) -> int:
+    ...     'barriers'
+    ...     if x < 0 or y < 0:
+    ...         raise ValueError('inputs must be nonnegative')
+    ...     return x + y
+    >>> from dis import Bytecode
+    >>> len(list(Bytecode(g.__code__))) < len(list(Bytecode(f.__code__)))
+    True
+
     It is possible to explicitly supply the namespace (such as the one that
     corresponds to the local scope) to the decorator. This may be necessary to
     do if the body of the function contains symbols that only appear in the
@@ -143,6 +173,17 @@ class barriers(dict): # pylint: disable=too-few-public-methods
       ...
     ValueError: inputs must be nonnegative
     """
+    @staticmethod
+    def _marker(s: ast.Stmt) -> bool:
+        """
+        Return a boolean value indicating whether the supplied expression is a
+        marker.
+        """
+        return isinstance(s, ast.Expr) and any([
+            isinstance(s.value, ast.Name) and (s.value.id == 'barriers'),
+            isinstance(s.value, ast.Constant) and (s.value.value == 'barriers')
+        ])
+
     def __init__(self: barriers, configuration: bool = True):
         super().__init__()
         self.configuration = configuration
@@ -163,14 +204,12 @@ class barriers(dict): # pylint: disable=too-few-public-methods
             statements = a.body[0].body
             statements_ = [] # New function body.
 
+            # Iterate over the statements and skip two statements (the marker
+            # and the statement below it) whenever a marker is detected. If
+            # a marker appears as the last statement, it is removed.
             i = 0
             while i < len(statements):
-                if (
-                    isinstance(statements[i], ast.Expr) and
-                    isinstance(statements[i].value, ast.Name) and
-                    (statements[i].value.id == 'barriers') and
-                    i <= (len(statements) - 1) # Remove mark if it appears last.
-                ):
+                if barriers._marker(statements[i]):
                     i += 2
                     continue
 
