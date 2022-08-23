@@ -9,7 +9,7 @@ import textwrap
 import ast
 import inspect
 
-class barriers(dict): # pylint: disable=too-few-public-methods
+class barriers: # pylint: disable=too-few-public-methods
     """
     Class for per-module configuration objects that can be used to define
     (and toggle inclusion of) categories of code blocks, to decorate functions,
@@ -156,7 +156,7 @@ class barriers(dict): # pylint: disable=too-few-public-methods
     ...
     Traceback (most recent call last):
       ...
-    RuntimeError: marker `barriers.value` is not defined
+    NameError: marker `barriers.value` is not defined
     >>> @barriers
     ... def h(x: int) -> int:
     ...
@@ -168,7 +168,7 @@ class barriers(dict): # pylint: disable=too-few-public-methods
     ...
     Traceback (most recent call last):
       ...
-    RuntimeError: marker `barriers.value` is not defined
+    NameError: marker `barriers.value` is not defined
 
     If a string marker cannot be parsed as an expression, it is ignored.
 
@@ -211,18 +211,13 @@ class barriers(dict): # pylint: disable=too-few-public-methods
     >>> from barriers import barriers
     >>> barriers = barriers(False)
 
-    It is possible to explicitly supply the namespace (such as the one that
-    corresponds to the local scope) to the decorator. This may be necessary to
-    do if the body of the function contains symbols that only appear in the
-    supplied namespace. For example, suppose the function below has been
-    defined.
+    Decorators can be applied to functions that invoke other functions. For
+    example, the definition of the function ``f`` below refers to another
+    function ``g``.
 
     >>> def g(x, y):
     ...     return x + y
-
-    The definition of the function ``f`` below refers to the function ``g``
-    defined above. However, invoking the decorated function raises an exception.
-
+    ...
     >>> @barriers
     ... def f(x: int, y: int) -> int:
     ...
@@ -233,14 +228,14 @@ class barriers(dict): # pylint: disable=too-few-public-methods
     ...     return g(x, y)
     ...
     >>> f(1, 2)
-    Traceback (most recent call last):
-      ...
-    NameError: name 'g' is not defined
+    3
 
-    In Python 3.9 and later, the :obj:`__getitem__` method allows bracket
-    notation to be used in order to supply a symbol table for a namespace.
-    The example below invokes this method explicitly in order accommodate
-    the syntax supported in Python 3.7 and Python 3.8.
+    It is possible to explicitly supply the namespace (such as the one that
+    corresponds to the local scope) to the decorator. In Python 3.9 and later,
+    the :obj:`__getitem__` method allows subscript notation to be used in order
+    to supply a symbol table for a namespace. The example below invokes this
+    method explicitly in order accommodate the syntax supported in Python 3.7
+    and Python 3.8.
 
     >>> @barriers.__getitem__(locals()) # Or ``@barriers[locals()]`` in Python 3.9 or later.
     ... def f(x: int, y: int) -> int:
@@ -281,8 +276,6 @@ class barriers(dict): # pylint: disable=too-few-public-methods
     ValueError: inputs must be nonnegative
     """
     def __init__(self: barriers, *args, **kwargs):
-        super().__init__()
-
         if len(kwargs) > 0 and len(args) > 0:
             raise ValueError(
                 'cannot specify general status when defining individual markers'
@@ -311,6 +304,9 @@ class barriers(dict): # pylint: disable=too-few-public-methods
 
         # Only one instance of this class should be created in a module.
         globals()['barriers'] = self
+
+        # Used to avoid recursive transformations.
+        self._disabled = False
 
     def _marker(self: barriers, s: ast.Stmt) -> bool:
         """
@@ -346,7 +342,7 @@ class barriers(dict): # pylint: disable=too-few-public-methods
             ):
                 # All individual markers must be defined in the configuration.
                 if s.value.attr not in self.configuration:
-                    raise RuntimeError(
+                    raise NameError(
                         'marker `barriers.' + s.value.attr + '` is not defined'
                     )
 
@@ -361,6 +357,8 @@ class barriers(dict): # pylint: disable=too-few-public-methods
         Transform a function by removing any statement within the body that has a
         marker that appears immediately above it.
         """
+        if self._disabled: # Avoid transforming when executing compiled bytecode.
+            return function
         # Parse the function definition into an abstract syntax tree.
         a = ast.parse(textwrap.dedent(inspect.getsource(function)))
 
@@ -387,10 +385,18 @@ class barriers(dict): # pylint: disable=too-few-public-methods
 
         # Compile and execute the transformed function definition given a
         # namespace symbol table.
-        exec( # pylint: disable=exec-used
-            compile(a, '<string>', 'exec'),
-            namespace
-        )
+        self._disabled = True # Avoid transforming recursively.
+        try:
+            exec( # pylint: disable=exec-used
+                compile(a, '<string>', 'exec'),
+                namespace
+            )
+            self._disabled = False
+        except Exception as e: # pragma: no cover
+            # If an exception is raised during compilation and execution,
+            # restore the state of this instance before raising the exception.
+            self._disabled = False
+            raise e
 
         return namespace[function.__name__]
 
@@ -403,8 +409,6 @@ class barriers(dict): # pylint: disable=too-few-public-methods
             """
             Decorator that is applied to the function to be transformed.
             """
-            namespace = dict(namespace.items())
-            namespace['barriers'] = _substitute() # Avoid transforming recursively.
             return self._transform(function, namespace)
 
         return decorator
@@ -414,34 +418,7 @@ class barriers(dict): # pylint: disable=too-few-public-methods
         Decorator that parses a function and removes any marked code blocks as
         specified within this instance.
         """
-        namespace = dict(globals().items()) # Use the global namespace by default.
-        namespace['barriers'] = _substitute() # Avoid transforming recursively.
-        return self._transform(function, namespace)
-
-class _substitute(barriers): # pylint: disable=invalid-name # Exclude from documentation.
-    """
-    Class for creating placeholder instances of :obj:`~barriers.barriers.barriers`
-    that have no effect. Instances of this class are introduced in place of the
-    user-defined instance in order to avoid recursive invocation of a
-    :obj:`~barriers.barriers.barriers` instance during the execution of a modified
-    abstract syntax tree.
-    """
-    def __getattr__(self: _substitute, name: str):
-        """
-        Ensure that named markers do not cause errors during compilation.
-        """
-
-    def __getitem__(self: _substitute, namespace: dict) -> Callable[[Callable], Callable]:
-        """
-        Discard supplied namespace and return a decorator.
-        """
-        return lambda function: function
-
-    def __call__(self: _substitute, function: Callable) -> Callable:
-        """
-        Return the supplied function.
-        """
-        return function
+        return self._transform(function, globals())
 
 if __name__ == '__main__':
     doctest.testmod() # pragma: no cover
