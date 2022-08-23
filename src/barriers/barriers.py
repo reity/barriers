@@ -1,9 +1,9 @@
 """
-Python decorator for including/excluding type checks, value/bounds checks, and
+Python decorators for including/excluding type checks, value/bounds checks, and
 other code blocks within the compiled bytecode of functions and methods.
 """
 from __future__ import annotations
-from typing import Callable
+from typing import Tuple, Optional, Callable, Dict
 import doctest
 import textwrap
 import ast
@@ -50,8 +50,9 @@ class barriers: # pylint: disable=too-few-public-methods
         enabled** (and, thus, that marked code blocks should not be removed from
         decorated functions).
 
-      * The notation ``@ globals()`` ensures that the namespace ``globals()``
-        is used when compiling the abstract syntax trees of transformed functions.
+      * The notation ``@ globals()`` ensures that the namespace returned by
+        :obj:`globals` is used when compiling the abstract syntax trees of
+        transformed functions.
 
     A code block can be designated for automatic removal by placing a marker --
     in this case, the ``example`` variable -- on the line directly above that
@@ -219,7 +220,7 @@ class barriers: # pylint: disable=too-few-public-methods
     >>> checks = barriers(True, False)
     Traceback (most recent call last):
       ...
-    ValueError: exactly one status argument or one or more named ... required
+    ValueError: exactly one status argument or one or more named status arguments are required
 
     In order to accommodate the remaining examples, the statement below resets
     the :obj:`~barriers.barriers.barriers` instance to one that does not define
@@ -300,7 +301,11 @@ class barriers: # pylint: disable=too-few-public-methods
     >>> f.opt(-1, -2)
     -3
     """
-    def __init__(self: barriers, *args, **kwargs):
+    def __init__(
+            self: barriers,
+            *args: Optional[Tuple[bool]],
+            **kwargs: Optional[Dict[str, bool]]
+        ):
         if len(kwargs) > 0 and len(args) > 0:
             raise ValueError(
                 'cannot specify general status when defining individual markers'

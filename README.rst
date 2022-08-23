@@ -2,7 +2,7 @@
 barriers
 ========
 
-Python decorator for including/excluding type checks, value/bounds checks, and other code blocks within the compiled bytecode of functions and methods.
+Python decorators for including/excluding type checks, value/bounds checks, and other code blocks within the compiled bytecode of functions and methods.
 
 |pypi| |readthedocs| |actions| |coveralls|
 
@@ -36,6 +36,12 @@ The library can be imported in the usual ways::
 Examples
 ^^^^^^^^
 
+.. |barriers| replace:: ``barriers``
+.. _barriers: https://barriers.readthedocs.io/en/0.1.0/_source/barriers.html#barriers.barriers.barriers
+
+.. |globals| replace:: ``globals``
+.. _globals: https://docs.python.org/3/library/functions.html#globals
+
 Consider the function below. The body of this function contains a code block that raises an exception if either of the two inputs is a negative integer::
 
     >>> def f(x: int, y: int) -> int:
@@ -52,9 +58,6 @@ Consider the function below. The body of this function contains a code block tha
       ...
     ValueError: inputs must be nonnegative
 
-.. |barriers| replace:: ``barriers``
-.. _barriers: https://barriers.readthedocs.io/en/0.1.0/_source/barriers.html#barriers.barriers.barriers
-
 An instance of the |barriers|_ class should normally be introduced near the top of a Python module::
 
     >>> example = barriers(False) @ globals() # Remove marked code blocks (i.e., "disable barriers").
@@ -63,7 +66,7 @@ The |barriers|_ instance ``example`` defined above is a decorator that transform
 
   * The ``False`` argument in the expression ``barriers(False)`` above should be interpreted to mean that **this barrier is disabled** (*i.e.*, that the marked code blocks in the bodies of functions decorated by this decorator **should be removed**). The default value for this optional argument is ``True``; this should be interpreted to mean that **this barrier is enabled** (and, thus, that marked code blocks **should not be removed** from decorated functions).
 
-  * The notation ``@ globals()`` ensures that the namespace ``globals()`` is used when compiling the abstract syntax trees of transformed functions.
+  * The notation ``@ globals()`` ensures that the namespace returned by |globals|_ is used when compiling the abstract syntax trees of transformed functions.
 
 A statement can be designated for automatic removal by placing a marker -- in this case, the ``example`` variable -- on the line directly above that statement. Note that in the body of the function ``f`` defined below, the ``if`` block is immediately preceded by a line that contains the variable ``example``::
 
