@@ -265,6 +265,40 @@ class barriers: # pylint: disable=too-few-public-methods
     Traceback (most recent call last):
       ...
     ValueError: inputs must be nonnegative
+
+    If an explicit attribute of the :obj:`~barriers.barriers.barriers` instance
+    created by the constructor is retrieved (such as in the example below where
+    the ``.opt`` syntax appears in the expression ``barriers(False).opt``), any
+    function decorated by this decorator is preserved as it is (under all
+    circumstances). Instead, the transformed version of the function is stored
+    under the specified attribute (which in this case is ``opt``) of the
+    function object.
+
+    >>> from barriers import barriers
+    >>> checks = barriers(False).opt @ globals()
+
+    Note that in the example below, the decorator has no effect on the original
+    function ``f``. However, the function ``f.opt`` corresponds to the
+    transformed version of ``f``.
+
+    >>> def g(x, y):
+    ...     return x + y
+    ...
+    >>> @checks
+    ... def f(x: int, y: int) -> int:
+    ...
+    ...     checks
+    ...     if x < 0 or y < 0:
+    ...         raise ValueError('inputs must be nonnegative')
+    ...
+    ...     return g(x, y)
+    ...
+    >>> f(-1, -2)
+    Traceback (most recent call last):
+      ...
+    ValueError: inputs must be nonnegative
+    >>> f.opt(-1, -2)
+    -3
     """
     def __init__(self: barriers, *args, **kwargs):
         if len(kwargs) > 0 and len(args) > 0:
@@ -296,9 +330,40 @@ class barriers: # pylint: disable=too-few-public-methods
         # Used to avoid recursive transformations.
         self._disabled = False
 
+        # Attribute of a decorated function under under which the transformed
+        # function is stored. If this is ``None``, then the function itself
+        # is transformed.
+        self._attribute = None
+
         # Default namespace to use when compiling transformed abstract syntax
         # trees of functions.
         self._namespace = {}
+
+    def __getattr__(self: barriers, attribute: str) -> barriers:
+        """
+        Set the attribute (of decorated function objects) under which the
+        transformed versions of those functions should be stored.
+
+        >>> from barriers import barriers
+        >>> checks = barriers(False).opt @ globals()
+        >>> @checks
+        ... def f(x: int, y: int) -> int:
+        ...
+        ...     checks
+        ...     if x < 0 or y < 0:
+        ...         raise ValueError('inputs must be nonnegative')
+        ...
+        ...     return x + y
+        ...
+        >>> f(-1, -2)
+        Traceback (most recent call last):
+          ...
+        ValueError: inputs must be nonnegative
+        >>> f.opt(-1, -2)
+        -3
+        """
+        self._attribute = attribute
+        return self
 
     def __matmul__(self: barriers, namespace: dict) -> barriers:
         """
@@ -436,6 +501,13 @@ class barriers: # pylint: disable=too-few-public-methods
             # restore the state of this instance before raising the exception.
             self._disabled = False
             raise e
+
+        # Store the transformed function under an attribute of the function
+        # object (if such an attribute has been specified) and return the
+        # function itself its original (unmodified) form.
+        if self._attribute is not None:
+            setattr(function, self._attribute, namespace[function.__name__])
+            return function
 
         return namespace[function.__name__]
 
