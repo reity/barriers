@@ -48,10 +48,10 @@ class barriers(dict): # pylint: disable=too-few-public-methods
     designated for automatic removal by placing a marker -- the ``barriers``
     variable -- on the line directly above that statement.
 
-    The ``False`` parameter in the expression ``barriers(False)`` above should
+    The ``False`` argument in the expression ``barriers(False)`` above should
     be interpreted to mean that *barriers are disabled* (*i.e.*, that the
     barrier statements should be removed). The default value for this optional
-    parameter is ``True``; this should be interpreted to mean that *barriers
+    argument is ``True``; this should be interpreted to mean that *barriers
     are enabled* (and, thus, that marked statements should not be removed from
     decorated functions).
 
@@ -105,6 +105,108 @@ class barriers(dict): # pylint: disable=too-few-public-methods
     >>> from dis import Bytecode
     >>> len(list(Bytecode(g.__code__))) < len(list(Bytecode(f.__code__)))
     True
+
+    It is also possible to define and use individually named markers (which
+    are referenced as attributes of the :obj:`~barriers.barriers.barriers`
+    instance).
+
+    >>> from barriers import barriers
+    >>> barriers = barriers(type=True, bounds=False)
+    >>> @barriers
+    ... def f(x: int, y: int) -> int:
+    ...
+    ...     barriers.type
+    ...     if not isinstance(x, int) and not isinstance(y, int):
+    ...         raise TypeError('inputs must be integers')
+    ...
+    ...     barriers.bounds
+    ...     if x < 0 or y < 0:
+    ...         raise ValueError('inputs must be nonnegative')
+    ...
+    ...     return x + y
+    >>> f('a', 'b')
+    Traceback (most recent call last):
+      ...
+    TypeError: inputs must be integers
+    >>> f(-1, -2)
+    -3
+
+    When one or more named markers are defined, only named markers that have
+    been defined can be used.
+
+    >>> @barriers
+    ... def h(x: int) -> int:
+    ...
+    ...     barriers
+    ...     if x == 0:
+    ...         raise ValueError('value must be nonzero')
+    ...
+    ...     return x
+    Traceback (most recent call last):
+      ...
+    RuntimeError: cannot use general marker when individual markers are defined
+    >>> @barriers
+    ... def h(x: int) -> int:
+    ...
+    ...     barriers.value
+    ...     if x == 0:
+    ...         raise ValueError('value must be nonzero')
+    ...
+    ...     return x
+    Traceback (most recent call last):
+      ...
+    RuntimeError: marker `barriers.value` is not defined
+    >>> @barriers
+    ... def h(x: int) -> int:
+    ...
+    ...     'barriers.value'
+    ...     if x == 0:
+    ...         raise ValueError('value must be nonzero')
+    ...
+    ...     return x
+    Traceback (most recent call last):
+      ...
+    RuntimeError: marker `barriers.value` is not defined
+
+    If a string marker cannot be parsed as an expression, it is ignored.
+
+    >>> @barriers
+    ... def i(x: int, y: int) -> int:
+    ...
+    ...     'barriers!value'
+    ...     if x < 0 or y < 0:
+    ...         raise ValueError('inputs must be nonnegative')
+    ...
+    ...     'pass'
+    ...     if x < 0 or y < 0:
+    ...         raise ValueError('inputs must be nonnegative')
+    ...
+    ...     return x + y
+    >>> i(-1, -2)
+    Traceback (most recent call last):
+      ...
+    ValueError: inputs must be nonnegative
+
+    When defining individual markers, setting the status using a single boolean
+    argument is not possible. Also, only a single boolean argument is permitted.
+
+    >>> from barriers import barriers
+    >>> barriers = barriers(True, type=True, bounds=False)
+    Traceback (most recent call last):
+      ...
+    ValueError: cannot specify general status when defining individual markers
+    >>> from barriers import barriers
+    >>> barriers = barriers(True, False)
+    Traceback (most recent call last):
+      ...
+    ValueError: exactly one status argument or one or more named ... required
+
+    In order to accommodate the remaining example, the statement below resets
+    the :obj:`~barriers.barriers.barriers` instance to one that does not define
+    distinct, named markers.
+
+    >>> from barriers import barriers
+    >>> barriers = barriers(False)
 
     It is possible to explicitly supply the namespace (such as the one that
     corresponds to the local scope) to the decorator. This may be necessary to
@@ -173,23 +275,81 @@ class barriers(dict): # pylint: disable=too-few-public-methods
       ...
     ValueError: inputs must be nonnegative
     """
-    @staticmethod
-    def _marker(s: ast.Stmt) -> bool:
-        """
-        Return a boolean value indicating whether the supplied expression is a
-        marker.
-        """
-        return isinstance(s, ast.Expr) and any([
-            isinstance(s.value, ast.Name) and (s.value.id == 'barriers'),
-            isinstance(s.value, ast.Constant) and (s.value.value == 'barriers')
-        ])
-
-    def __init__(self: barriers, configuration: bool = True):
+    def __init__(self: barriers, *args, **kwargs):
         super().__init__()
-        self.configuration = configuration
+
+        if len(kwargs) > 0 and len(args) > 0:
+            raise ValueError(
+                'cannot specify general status when defining individual markers'
+            )
+
+        if len(args) == 0 and len(kwargs) == 0:
+            self.status = True
+
+        if len(args) == 0 and len(kwargs) > 0:
+            self.status = None
+
+        if len(args) > 0 and len(kwargs) == 0:
+            if len(args) > 1:
+                raise ValueError(
+                    'exactly one status argument or one or more named ' +
+                    'status arguments are required'
+                )
+
+            self.status = args[0]
+
+        # Store the configuration and add attributes to this instance that
+        # correspond to the named markers.
+        self.configuration = kwargs
+        for (name, status) in kwargs.items():
+            setattr(self, name, status)
 
         # Only one instance of this class should be created in a module.
         globals()['barriers'] = self
+
+    def _marker(self: barriers, s: ast.Stmt) -> bool:
+        """
+        Return a boolean value indicating whether the supplied expression is a
+        marker that indicates (according to the configuration of this instance)
+        that the marked statement should be removed.
+        """
+        if isinstance(s, ast.Expr):
+
+            # If the marker is a string, attempt to parse that string.
+            if isinstance(s.value, ast.Constant) and isinstance(s.value.value, str):
+                try:
+                    s = ast.parse(s.value.value).body[0]
+                    if not isinstance(s, ast.Expr):
+                        return False
+                except SyntaxError as _:
+                    return False
+
+            # Simple universal marker.
+            if isinstance(s.value, ast.Name) and (s.value.id == 'barriers'):
+                if len(self.configuration) > 0:
+                    raise RuntimeError(
+                        'cannot use general marker when individual markers are defined'
+                    )
+
+                return not self.status # Remove marked statement if barriers are disabled.
+
+            # Named marker.
+            if (
+                isinstance(s.value, ast.Attribute) and
+                isinstance(s.value.value, ast.Name) and
+                (s.value.value.id == 'barriers')
+            ):
+                # All individual markers must be defined in the configuration.
+                if s.value.attr not in self.configuration:
+                    raise RuntimeError(
+                        'marker `barriers.' + s.value.attr + '` is not defined'
+                    )
+
+                # Remove marked statement if barriers for this individual marker
+                # are disabled.
+                return not self.configuration[s.value.attr]
+
+        return False
 
     def _transform(self: barriers, function: Callable, namespace: dict) -> Callable:
         """
@@ -199,8 +359,10 @@ class barriers(dict): # pylint: disable=too-few-public-methods
         # Parse the function definition into an abstract syntax tree.
         a = ast.parse(textwrap.dedent(inspect.getsource(function)))
 
-        # Transform the abstract syntax tree.
-        if self.configuration is not True: # Either ``False`` or more granular dictionary.
+        # Transform the abstract syntax tree if all barriers are disabled
+        # or if named markers have been defined (and must be checked
+        # individually).
+        if self.status is False or len(self.configuration) > 0:
             statements = a.body[0].body
             statements_ = [] # New function body.
 
@@ -209,7 +371,7 @@ class barriers(dict): # pylint: disable=too-few-public-methods
             # a marker appears as the last statement, it is removed.
             i = 0
             while i < len(statements):
-                if barriers._marker(statements[i]):
+                if self._marker(statements[i]):
                     i += 2
                     continue
 
@@ -259,6 +421,11 @@ class _substitute(barriers): # pylint: disable=invalid-name # Exclude from docum
     :obj:`~barriers.barriers.barriers` instance during the execution of a modified
     abstract syntax tree.
     """
+    def __getattr__(self: _substitute, name: str):
+        """
+        Ensure that named markers do not cause errors during compilation.
+        """
+
     def __getitem__(self: _substitute, namespace: dict) -> Callable[[Callable], Callable]:
         """
         Discard supplied namespace and return a decorator.
