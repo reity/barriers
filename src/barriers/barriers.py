@@ -33,40 +33,42 @@ class barriers: # pylint: disable=too-few-public-methods
       ...
     ValueError: inputs must be nonnegative
 
-    Below, an instance of :obj:`~barriers.barriers.barriers` is introduced. The
-    instance *must be called* ``barriers``. The constructor adds an entry to
-    ``globals()`` for the instance being constructed; the examples in this
-    docstring cannot modify ``globals()`` in this way and so the instance is
-    explicitly assigned to the variable ``barriers``.
+    Below, an instance of :obj:`~barriers.barriers.barriers` is introduced.
 
     >>> from barriers import barriers
-    >>> barriers = barriers(False) # Remove marked code blocks (i.e., "disable barriers").
+    >>> example = barriers(False) @ globals()
 
-    The :obj:`~barriers.barriers.barriers` instance defined above is a
-    decorator that can remove designated code blocks in the body of a function.
-    A code block can be designated for automatic removal by placing a marker
-    -- the ``barriers`` variable -- on the line directly above that code block.
+    The :obj:`~barriers.barriers.barriers` instance ``example`` defined above
+    is a decorator that can remove designated code blocks in the body of a
+    function.
 
-    The ``False`` argument in the expression ``barriers(False)`` above should
-    be interpreted to mean that *barriers are disabled* (*i.e.*, that the
-    barrier code blocks should be removed). The default value for this optional
-    argument is ``True``; this should be interpreted to mean that *barriers
-    are enabled* (and, thus, that marked code blocks should not be removed from
-    decorated functions).
+      * The ``False`` argument in the expression ``barriers(False)`` above should
+        be interpreted to mean that **this barrier is disabled** (*i.e.*, that the
+        marked code blocks in the bodies of functions decorated by this decorator
+        should be removed). The default value for this optional argument is
+        ``True``; this should be interpreted to mean that **this barrier is
+        enabled** (and, thus, that marked code blocks should not be removed from
+        decorated functions).
 
-    Note that in the body of the function ``f`` defined below, the ``if`` block
-    is immediately preceded by a line that contains the variable ``barriers``.
+      * The notation ``@ globals()`` ensures that the namespace ``globals()``
+        is used when compiling the abstract syntax trees of transformed functions.
 
-    >>> @barriers
+    A code block can be designated for automatic removal by placing a marker --
+    in this case, the ``example`` variable -- on the line directly above that
+    code block. Note that in the body of the function ``f`` defined below, the
+    ``if`` block is immediately preceded by a line that contains the variable
+    ``example``.
+
+    >>> @example
     ... def f(x: int, y: int) -> int:
     ...
-    ...     barriers
+    ...     example
     ...     if x < 0 or y < 0:
     ...         raise ValueError('inputs must be nonnegative')
     ...
     ...     return x + y
 
-    The decorator ``@barriers`` automatically removes the ``if`` block in the
+    The decorator ``@example`` automatically removes the ``if`` block in the
     function above. As a result, the function does not raise an exception when
     it is applied to negative inputs.
 
@@ -75,12 +77,12 @@ class barriers: # pylint: disable=too-few-public-methods
     >>> f(-1, -2)
     -3
 
-    It is also possible to use the string literal ``'barriers'`` as a marker.
+    It is also possible to use the string literal ``'example'`` as a marker.
 
-    >>> @barriers
+    >>> @example
     ... def g(x: int, y: int) -> int:
     ...
-    ...     'barriers'
+    ...     'example'
     ...     if x < 0 or y < 0:
     ...         raise ValueError('inputs must be nonnegative')
     ...
@@ -91,15 +93,17 @@ class barriers: # pylint: disable=too-few-public-methods
     below).
 
     >>> def f(x: int, y: int) -> int:
-    ...     barriers
+    ...     example
     ...     if x < 0 or y < 0:
     ...         raise ValueError('inputs must be nonnegative')
     ...     return x + y
+    ...
     >>> def g(x: int, y: int) -> int:
-    ...     'barriers'
+    ...     'example'
     ...     if x < 0 or y < 0:
     ...         raise ValueError('inputs must be nonnegative')
     ...     return x + y
+    ...
     >>> from dis import Bytecode
     >>> len(list(Bytecode(g.__code__))) < len(list(Bytecode(f.__code__)))
     True
@@ -109,15 +113,15 @@ class barriers: # pylint: disable=too-few-public-methods
     instance).
 
     >>> from barriers import barriers
-    >>> barriers = barriers(type=True, bounds=False)
-    >>> @barriers
+    >>> checks = barriers(types=True, bounds=False) @ globals()
+    >>> @checks
     ... def f(x: int, y: int) -> int:
     ...
-    ...     barriers.type
+    ...     checks.types
     ...     if not isinstance(x, int) and not isinstance(y, int):
     ...         raise TypeError('inputs must be integers')
     ...
-    ...     barriers.bounds
+    ...     checks.bounds
     ...     if x < 0 or y < 0:
     ...         raise ValueError('inputs must be nonnegative')
     ...
@@ -133,10 +137,10 @@ class barriers: # pylint: disable=too-few-public-methods
     When one or more named markers are defined, only named markers that have
     been defined can be used.
 
-    >>> @barriers
+    >>> @checks
     ... def h(x: int) -> int:
     ...
-    ...     barriers
+    ...     checks
     ...     if x == 0:
     ...         raise ValueError('value must be nonzero')
     ...
@@ -145,10 +149,10 @@ class barriers: # pylint: disable=too-few-public-methods
     Traceback (most recent call last):
       ...
     RuntimeError: cannot use general marker when individual markers are defined
-    >>> @barriers
+    >>> @checks
     ... def h(x: int) -> int:
     ...
-    ...     barriers.value
+    ...     checks.value
     ...     if x == 0:
     ...         raise ValueError('value must be nonzero')
     ...
@@ -156,11 +160,11 @@ class barriers: # pylint: disable=too-few-public-methods
     ...
     Traceback (most recent call last):
       ...
-    NameError: marker `barriers.value` is not defined
-    >>> @barriers
+    NameError: marker `checks.value` is not defined
+    >>> @checks
     ... def h(x: int) -> int:
     ...
-    ...     'barriers.value'
+    ...     'checks.value'
     ...     if x == 0:
     ...         raise ValueError('value must be nonzero')
     ...
@@ -168,14 +172,27 @@ class barriers: # pylint: disable=too-few-public-methods
     ...
     Traceback (most recent call last):
       ...
-    NameError: marker `barriers.value` is not defined
+    NameError: marker `checks.value` is not defined
+
+    A statement may have a syntactic form that *could* be a marker. However,
+    if it makes no reference to a defined instance of
+    :obj:`~barriers.barriers.barriers`, it is ignored.
+
+    >>> @checks
+    ... def h(x: int) -> int:
+    ...
+    ...     undefined.value
+    ...     if x == 0:
+    ...         raise ValueError('value must be nonzero')
+    ...
+    ...     return x
 
     If a string marker cannot be parsed as an expression, it is ignored.
 
-    >>> @barriers
+    >>> @checks
     ... def i(x: int, y: int) -> int:
     ...
-    ...     'barriers!value'
+    ...     'checks!value'
     ...     if x < 0 or y < 0:
     ...         raise ValueError('inputs must be nonnegative')
     ...
@@ -194,12 +211,12 @@ class barriers: # pylint: disable=too-few-public-methods
     argument is not possible. Also, only a single boolean argument is permitted.
 
     >>> from barriers import barriers
-    >>> barriers = barriers(True, type=True, bounds=False)
+    >>> checks = barriers(True, types=True, bounds=False)
     Traceback (most recent call last):
       ...
     ValueError: cannot specify general status when defining individual markers
     >>> from barriers import barriers
-    >>> barriers = barriers(True, False)
+    >>> checks = barriers(True, False)
     Traceback (most recent call last):
       ...
     ValueError: exactly one status argument or one or more named ... required
@@ -209,7 +226,7 @@ class barriers: # pylint: disable=too-few-public-methods
     distinct, named markers.
 
     >>> from barriers import barriers
-    >>> barriers = barriers(False)
+    >>> checks = barriers(False) @ globals()
 
     Decorators can be applied to functions that invoke other functions. For
     example, the definition of the function ``f`` below refers to another
@@ -218,10 +235,10 @@ class barriers: # pylint: disable=too-few-public-methods
     >>> def g(x, y):
     ...     return x + y
     ...
-    >>> @barriers
+    >>> @checks
     ... def f(x: int, y: int) -> int:
     ...
-    ...     barriers
+    ...     checks
     ...     if x < 0 or y < 0:
     ...         raise ValueError('inputs must be nonnegative')
     ...
@@ -230,41 +247,15 @@ class barriers: # pylint: disable=too-few-public-methods
     >>> f(1, 2)
     3
 
-    It is possible to explicitly supply the namespace (such as the one that
-    corresponds to the local scope) to the decorator. In Python 3.9 and later,
-    the :obj:`__getitem__` method allows subscript notation to be used in order
-    to supply a symbol table for a namespace. The example below invokes this
-    method explicitly in order accommodate the syntax supported in Python 3.7
-    and Python 3.8.
-
-    >>> @barriers.__getitem__(locals()) # Or ``@barriers[locals()]`` in Python 3.9 or later.
-    ... def f(x: int, y: int) -> int:
-    ...
-    ...    barriers
-    ...    if x < 0 or y < 0:
-    ...         raise ValueError('inputs must be nonnegative')
-    ...
-    ...    return g(x, y)
-    ...
-    >>> f(1, 2)
-    3
-    >>> f(-1, -2)
-    -3
-
-    Note that the :obj:`__call__` method uses the namespace returned by
-    :obj:`globals`. Thus, the decorator ``@barriers`` is equivalent to
-    ``@barriers[globals()]``. However, in certain situations (*e.g.*, in
-    doctests) this is not sufficient.
-
     For completess, the example below demonstrates that marked code blocks
-    are not removed by default (*i.e.*, when no arguments are supplied to
-    the :obj:`~barriers.barriers.barriers` constructor).
+    are by default (*i.e.*, when no arguments are supplied to the
+    :obj:`~barriers.barriers.barriers` constructor) not removed.
 
     >>> from barriers import barriers
-    >>> barriers = barriers() # Equivalent to ``barriers(True)``.
+    >>> checks = barriers() @ globals()
     >>> def f(x: int, y: int) -> int:
     ...
-    ...     barriers
+    ...     checks
     ...     if x < 0 or y < 0:
     ...         raise ValueError('inputs must be nonnegative')
     ...
@@ -302,13 +293,55 @@ class barriers: # pylint: disable=too-few-public-methods
         for (name, status) in kwargs.items():
             setattr(self, name, status)
 
-        # Only one instance of this class should be created in a module.
-        globals()['barriers'] = self
-
         # Used to avoid recursive transformations.
         self._disabled = False
 
-    def _marker(self: barriers, s: ast.Stmt) -> bool:
+        # Default namespace to use when compiling transformed abstract syntax
+        # trees of functions.
+        self._namespace = {}
+
+    def __matmul__(self: barriers, namespace: dict) -> barriers:
+        """
+        Store internally the supplied namespace. This namespace is used during
+        the compilation of transformed abstract syntax trees of functions in
+        the :obj:`_transform` method.
+
+        >>> from barriers import barriers
+        >>> example = barriers(False) @ globals()
+        >>> @example
+        ... def f(x: int, y: int) -> int:
+        ...
+        ...     example
+        ...     if x < 0 or y < 0:
+        ...         raise ValueError('inputs must be nonnegative')
+        ...
+        ...     return x + y
+        ...
+        >>> f(-1, -2)
+        -3
+
+        If no namespace is specified, it is possible that instances of markers
+        that appear in the body of a function will not be recognized.
+
+        >>> from barriers import barriers
+        >>> example = barriers(False)
+        >>> @example
+        ... def f(x: int, y: int) -> int:
+        ...
+        ...     example
+        ...     if x < 0 or y < 0:
+        ...         raise ValueError('inputs must be nonnegative')
+        ...
+        ...     return x + y
+        ...
+        Traceback (most recent call last):
+           ...
+        NameError: name 'example' is not defined
+        """
+        self._namespace = namespace
+        return self
+
+    def _marker(self: barriers, s: ast.Stmt, namespace: dict) -> bool:
         """
         Return a boolean value indicating whether the supplied expression is a
         marker that indicates (according to the configuration of this instance)
@@ -326,7 +359,10 @@ class barriers: # pylint: disable=too-few-public-methods
                     return False
 
             # Simple universal marker.
-            if isinstance(s.value, ast.Name) and (s.value.id == 'barriers'):
+            if (
+                isinstance(s.value, ast.Name) and
+                (namespace.get(s.value.id, None) == self)
+            ):
                 if len(self.configuration) > 0:
                     raise RuntimeError(
                         'cannot use general marker when individual markers are defined'
@@ -338,12 +374,14 @@ class barriers: # pylint: disable=too-few-public-methods
             if (
                 isinstance(s.value, ast.Attribute) and
                 isinstance(s.value.value, ast.Name) and
-                (s.value.value.id == 'barriers')
+                (namespace.get(s.value.value.id, None) == self)
             ):
                 # All individual markers must be defined in the configuration.
                 if s.value.attr not in self.configuration:
                     raise NameError(
-                        'marker `barriers.' + s.value.attr + '` is not defined'
+                        'marker `' +
+                        s.value.value.id + '.' + s.value.attr +
+                        '` is not defined'
                     )
 
                 # Remove marked code block if barriers for this individual marker
@@ -359,6 +397,7 @@ class barriers: # pylint: disable=too-few-public-methods
         """
         if self._disabled: # Avoid transforming when executing compiled bytecode.
             return function
+
         # Parse the function definition into an abstract syntax tree.
         a = ast.parse(textwrap.dedent(inspect.getsource(function)))
 
@@ -374,7 +413,7 @@ class barriers: # pylint: disable=too-few-public-methods
             # a marker appears as the last statement, it is removed.
             i = 0
             while i < len(statements):
-                if self._marker(statements[i]):
+                if self._marker(statements[i], namespace):
                     i += 2
                     continue
 
@@ -400,25 +439,26 @@ class barriers: # pylint: disable=too-few-public-methods
 
         return namespace[function.__name__]
 
-    def __getitem__(self: barriers, namespace: dict) -> Callable[[Callable], Callable]:
-        """
-        Decorator that parses a function and removes any marked code blocks as
-        specified within this instance.
-        """
-        def decorator(function: Callable, namespace: dict = namespace) -> Callable:
-            """
-            Decorator that is applied to the function to be transformed.
-            """
-            return self._transform(function, namespace)
-
-        return decorator
-
     def __call__(self: barriers, function: Callable) -> Callable:
         """
-        Decorator that parses a function and removes any marked code blocks as
-        specified within this instance.
+        Allows this instance to behave as a decorator that parses a function
+        and removes any marked code blocks (as specified within this instance).
+
+        >>> from barriers import barriers
+        >>> example = barriers(False) @ globals()
+        >>> @example
+        ... def f(x: int, y: int) -> int:
+        ...
+        ...     example
+        ...     if x < 0 or y < 0:
+        ...         raise ValueError('inputs must be nonnegative')
+        ...
+        ...     return x + y
+        ...
+        >>> f(-1, -2)
+        -3
         """
-        return self._transform(function, globals())
+        return self._transform(function, self._namespace)
 
 if __name__ == '__main__':
     doctest.testmod() # pragma: no cover

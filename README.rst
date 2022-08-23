@@ -55,27 +55,28 @@ Consider the function below. The body of this function contains a code block tha
 .. |barriers| replace:: ``barriers``
 .. _barriers: https://barriers.readthedocs.io/en/0.1.0/_source/barriers.html#barriers.barriers.barriers
 
-An instance of the |barriers|_ class should normally be introduced near the top of a Python module and must be named ``barriers``. Alternatively, it is sufficient to invoke the constructor (as it automatically assigns a new instance of the class to the global variable ``barriers``)::
+An instance of the |barriers|_ class should normally be introduced near the top of a Python module::
 
-    >>> barriers = barriers(False) # Remove marked statements (i.e., "disable barriers").
+    >>> example = barriers(False) @ globals() # Remove marked code blocks (i.e., "disable barriers").
 
+The |barriers|_ instance ``example`` defined above is a decorator that transforms any decorated function by removing any designated code blocks in the body of that function.
 
-The |barriers|_ instance defined above is a decorator that transforms any decorated function by removing any statement that appears directly below any instance of a *marker*. A statement can be designated for automatic removal by placing a marker -- the ``barriers`` variable -- on the line directly above that statement.
+  * The ``False`` argument in the expression ``barriers(False)`` above should be interpreted to mean that **this barrier is disabled** (*i.e.*, that the marked code blocks in the bodies of functions decorated by this decorator **should be removed**). The default value for this optional argument is ``True``; this should be interpreted to mean that **this barrier is enabled** (and, thus, that marked code blocks **should not be removed** from decorated functions).
 
-The ``False`` argument in the expression ``barriers(False)`` above should be interpreted to mean that *barriers are disabled* (*i.e.*, that the barrier statements should be removed). The default value for this optional argument is ``True``; this should be interpreted to mean that *barriers are enabled* (and, thus, that marked statements should not be removed from decorated functions).
+  * The notation ``@ globals()`` ensures that the namespace ``globals()`` is used when compiling the abstract syntax trees of transformed functions.
 
-Note that in the body of the function ``f`` defined below, the ``if`` block is immediately preceded by a line that contains the variable ``barriers``::
+A statement can be designated for automatic removal by placing a marker -- in this case, the ``example`` variable -- on the line directly above that statement. Note that in the body of the function ``f`` defined below, the ``if`` block is immediately preceded by a line that contains the variable ``example``::
 
-    >>> @barriers
+    >>> @example
     ... def f(x: int, y: int) -> int:
     ...
-    ...     barriers
+    ...     example
     ...     if x < 0 or y < 0:
     ...         raise ValueError('inputs must be nonnegative')
     ...
     ...     return x + y
 
-The decorator ``@barriers`` automatically removes the ``if`` block in the function above. As a result, the function does not raise an exception when it is applied to negative inputs::
+The decorator ``@example`` automatically removes the ``if`` block in the function above. As a result, the function does not raise an exception when it is applied to negative inputs::
 
     >>> f(1, 2)
     3
@@ -85,18 +86,18 @@ The decorator ``@barriers`` automatically removes the ``if`` block in the functi
 It is also possible to define and use individually named markers (which are created as attributes of the |barriers|_ instance)::
 
     >>> from barriers import barriers
-    >>> barriers = barriers(type=True, bounds=False)
+    >>> checks = barriers(types=True, bounds=False) @ globals()
 
-Given the above definitions, it is now possible to introduce named markers such as those in the example below. When a marker definition has been assigned ``True``, the statements immediately below that named marker *are not removed* (*i.e.*, the marked *barrier* statements are enabled). When a marker definition has been assigned ``False``, the corresponding marked statements *are removed*::
+Given the above definitions, it is now possible to introduce named markers such as those in the example below. When a marker definition has been assigned ``True``, the statements immediately below that named marker **are not removed** (*i.e.*, the marked barrier statements are enabled). When a marker definition has been assigned ``False``, the corresponding marked statements **are removed**::
 
-    >>> @barriers
+    >>> @checks
     ... def f(x: int, y: int) -> int:
     ...
-    ...     barriers.type
+    ...     checks.types
     ...     if not isinstance(x, int) and not isinstance(y, int):
     ...         raise TypeError('inputs must be integers')
     ...
-    ...     barriers.bounds
+    ...     checks.bounds
     ...     if x < 0 or y < 0:
     ...         raise ValueError('inputs must be nonnegative')
     ...
