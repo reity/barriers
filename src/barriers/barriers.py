@@ -1,5 +1,5 @@
 """
-Python decorator for including/removing type checks, value/bounds checks, and
+Python decorator for including/excluding type checks, value/bounds checks, and
 other code blocks within the compiled bytecode of functions and methods.
 """
 from __future__ import annotations
@@ -11,9 +11,9 @@ import inspect
 
 class barriers(dict): # pylint: disable=too-few-public-methods
     """
-    Class for per-module configuration objects that can be used to define and
-    toggle inclusion of categories of checks, for decorating functions, and for
-    marking code blocks.
+    Class for per-module configuration objects that can be used to define
+    (and toggle inclusion of) categories of code blocks, to decorate functions,
+    and to mark code blocks.
 
     Consider the function below. The body of this function contains a code
     block that raises an exception if either of the two inputs is a negative
@@ -40,20 +40,22 @@ class barriers(dict): # pylint: disable=too-few-public-methods
     explicitly assigned to the variable ``barriers``.
 
     >>> from barriers import barriers
-    >>> barriers = barriers(False) # Remove marked statements (i.e., "disable barriers").
+    >>> barriers = barriers(False) # Remove marked code blocks (i.e., "disable barriers").
 
-    The :obj:`~barriers.barriers.barriers` instance defined above is now a
-    decorator that transforms any decorated function by removing any statement
-    that appears directly below any instance of a *marker*. A statement can be
-    designated for automatic removal by placing a marker -- the ``barriers``
-    variable -- on the line directly above that statement.
+    The :obj:`~barriers.barriers.barriers` instance defined above is a
+    decorator that can remove designated code blocks in the body of a function.
+    A code block can be designated for automatic removal by placing a marker
+    -- the ``barriers`` variable -- on the line directly above that code block.
 
     The ``False`` argument in the expression ``barriers(False)`` above should
     be interpreted to mean that *barriers are disabled* (*i.e.*, that the
-    barrier statements should be removed). The default value for this optional
+    barrier code blocks should be removed). The default value for this optional
     argument is ``True``; this should be interpreted to mean that *barriers
-    are enabled* (and, thus, that marked statements should not be removed from
+    are enabled* (and, thus, that marked code blocks should not be removed from
     decorated functions).
+
+    Note that in the body of the function ``f`` defined below, the ``if`` block
+    is immediately preceded by a line that contains the variable ``barriers``.
 
     >>> @barriers
     ... def f(x: int, y: int) -> int:
@@ -63,13 +65,10 @@ class barriers(dict): # pylint: disable=too-few-public-methods
     ...         raise ValueError('inputs must be nonnegative')
     ...
     ...     return x + y
-    ...
 
-    Note that in the body of the function ``f`` defined above, the ``if`` block
-    is immediately preceded by a line that contains the variable ``barriers``.
-    Thus, the decorator ``@barriers`` automatically removed the ``if`` block.
-    As a result, the function does not raise an exception when it is applied to
-    negative inputs.
+    The decorator ``@barriers`` automatically removes the ``if`` block in the
+    function above. As a result, the function does not raise an exception when
+    it is applied to negative inputs.
 
     >>> f(1, 2)
     3
@@ -86,7 +85,6 @@ class barriers(dict): # pylint: disable=too-few-public-methods
     ...         raise ValueError('inputs must be nonnegative')
     ...
     ...     return x + y
-    ...
 
     This may be preferable because string literals appearing as statements do
     not contribute to the size of the compiled bytecode of a function (as shown
@@ -107,7 +105,7 @@ class barriers(dict): # pylint: disable=too-few-public-methods
     True
 
     It is also possible to define and use individually named markers (which
-    are referenced as attributes of the :obj:`~barriers.barriers.barriers`
+    are created as attributes of the :obj:`~barriers.barriers.barriers`
     instance).
 
     >>> from barriers import barriers
@@ -124,6 +122,7 @@ class barriers(dict): # pylint: disable=too-few-public-methods
     ...         raise ValueError('inputs must be nonnegative')
     ...
     ...     return x + y
+    ...
     >>> f('a', 'b')
     Traceback (most recent call last):
       ...
@@ -142,6 +141,7 @@ class barriers(dict): # pylint: disable=too-few-public-methods
     ...         raise ValueError('value must be nonzero')
     ...
     ...     return x
+    ...
     Traceback (most recent call last):
       ...
     RuntimeError: cannot use general marker when individual markers are defined
@@ -153,6 +153,7 @@ class barriers(dict): # pylint: disable=too-few-public-methods
     ...         raise ValueError('value must be nonzero')
     ...
     ...     return x
+    ...
     Traceback (most recent call last):
       ...
     RuntimeError: marker `barriers.value` is not defined
@@ -164,6 +165,7 @@ class barriers(dict): # pylint: disable=too-few-public-methods
     ...         raise ValueError('value must be nonzero')
     ...
     ...     return x
+    ...
     Traceback (most recent call last):
       ...
     RuntimeError: marker `barriers.value` is not defined
@@ -182,6 +184,7 @@ class barriers(dict): # pylint: disable=too-few-public-methods
     ...         raise ValueError('inputs must be nonnegative')
     ...
     ...     return x + y
+    ...
     >>> i(-1, -2)
     Traceback (most recent call last):
       ...
@@ -201,7 +204,7 @@ class barriers(dict): # pylint: disable=too-few-public-methods
       ...
     ValueError: exactly one status argument or one or more named ... required
 
-    In order to accommodate the remaining example, the statement below resets
+    In order to accommodate the remaining examples, the statement below resets
     the :obj:`~barriers.barriers.barriers` instance to one that does not define
     distinct, named markers.
 
@@ -247,6 +250,7 @@ class barriers(dict): # pylint: disable=too-few-public-methods
     ...         raise ValueError('inputs must be nonnegative')
     ...
     ...    return g(x, y)
+    ...
     >>> f(1, 2)
     3
     >>> f(-1, -2)
@@ -257,8 +261,9 @@ class barriers(dict): # pylint: disable=too-few-public-methods
     ``@barriers[globals()]``. However, in certain situations (*e.g.*, in
     doctests) this is not sufficient.
 
-    For completess, the example below demonstrates that marked statements
-    are not removed when the default configuration is used.
+    For completess, the example below demonstrates that marked code blocks
+    are not removed by default (*i.e.*, when no arguments are supplied to
+    the :obj:`~barriers.barriers.barriers` constructor).
 
     >>> from barriers import barriers
     >>> barriers = barriers() # Equivalent to ``barriers(True)``.
@@ -311,7 +316,7 @@ class barriers(dict): # pylint: disable=too-few-public-methods
         """
         Return a boolean value indicating whether the supplied expression is a
         marker that indicates (according to the configuration of this instance)
-        that the marked statement should be removed.
+        that the marked code blocks should be removed.
         """
         if isinstance(s, ast.Expr):
 
@@ -331,7 +336,7 @@ class barriers(dict): # pylint: disable=too-few-public-methods
                         'cannot use general marker when individual markers are defined'
                     )
 
-                return not self.status # Remove marked statement if barriers are disabled.
+                return not self.status # Remove marked code block if barriers are disabled.
 
             # Named marker.
             if (
@@ -345,7 +350,7 @@ class barriers(dict): # pylint: disable=too-few-public-methods
                         'marker `barriers.' + s.value.attr + '` is not defined'
                     )
 
-                # Remove marked statement if barriers for this individual marker
+                # Remove marked code block if barriers for this individual marker
                 # are disabled.
                 return not self.configuration[s.value.attr]
 
