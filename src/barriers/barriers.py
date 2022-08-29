@@ -5,6 +5,7 @@ other code blocks within the compiled bytecode of functions and methods.
 from __future__ import annotations
 from typing import Tuple, Optional, Callable, Dict
 import doctest
+import sys
 import textwrap
 import ast
 import inspect
@@ -420,9 +421,16 @@ class barriers: # pylint: disable=too-few-public-methods
         if isinstance(s, ast.Expr):
 
             # If the marker is a string, attempt to parse that string.
-            if isinstance(s.value, ast.Constant) and isinstance(s.value.value, str):
+            # Accommodate Python 3.7 AST classes.
+            string = None
+            if sys.version_info < (3, 8) and isinstance(s.value, ast.Str):
+                string = s.value.s # pragma: no cover
+            elif isinstance(s.value, ast.Constant) and isinstance(s.value.value, str):
+                string = s.value.value # pragma: no cover
+
+            if string is not None:
                 try:
-                    s = ast.parse(s.value.value).body[0]
+                    s = ast.parse(string).body[0]
                     if not isinstance(s, ast.Expr):
                         return False
                 except SyntaxError as _:

@@ -64,9 +64,9 @@ An instance of the |barriers|_ class should normally be introduced near the top 
 
 The |barriers|_ instance ``example`` defined above is a decorator that transforms any decorated function by removing any designated code blocks in the body of that function.
 
-  * The ``False`` argument in the expression ``barriers(False)`` above should be interpreted to mean that **this barrier is disabled** (*i.e.*, that the marked code blocks in the bodies of functions decorated by this decorator **should be removed**). The default value for this optional argument is ``True``; this should be interpreted to mean that **this barrier is enabled** (and, thus, that marked code blocks **should not be removed** from decorated functions).
+* The ``False`` argument in the expression ``barriers(False)`` above should be interpreted to mean that **this barrier is disabled** (*i.e.*, that the marked code blocks in the bodies of functions decorated by this decorator **should be removed**). The default value for this optional argument is ``True``; this should be interpreted to mean that **this barrier is enabled** (and, thus, that marked code blocks **should not be removed** from decorated functions).
 
-  * The notation ``@ globals()`` ensures that the namespace returned by |globals|_ is used when compiling the abstract syntax trees of transformed functions.
+* The notation ``@ globals()`` ensures that the namespace returned by |globals|_ is used when compiling the abstract syntax trees of transformed functions.
 
 A statement can be designated for automatic removal by placing a marker -- in this case, the ``example`` variable -- on the line directly above that statement. Note that in the body of the function ``f`` defined below, the ``if`` block is immediately preceded by a line that contains the variable ``example``::
 
