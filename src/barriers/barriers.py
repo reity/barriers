@@ -545,5 +545,10 @@ class barriers: # pylint: disable=too-few-public-methods
         """
         return self._transform(function, self._namespace)
 
+    def __getattr__(self, attr):
+        if attr == '__wrapped__':
+            raise AttributeError
+        return self.__getattribute__(attr)
+
 if __name__ == '__main__':
     doctest.testmod() # pragma: no cover
