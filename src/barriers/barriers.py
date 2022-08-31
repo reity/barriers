@@ -268,19 +268,15 @@ class barriers: # pylint: disable=too-few-public-methods
       ...
     ValueError: inputs must be nonnegative
 
-    If an explicit attribute of the :obj:`~barriers.barriers.barriers` instance
-    created by the constructor is retrieved (such as in the example below where
-    the ``.opt`` syntax appears in the expression ``barriers(False).opt``), any
-    function decorated by this decorator is preserved as it is (under all
-    circumstances). Instead, the transformed version of the function is stored
-    under the specified attribute (which in this case is ``opt``) of the
-    function object.
+    The ``>>`` operator (corresponding to the :obj:`__rshift__` method) can
+    be used to ensure that the decorator stores the transformed version of the
+    decorated function under a specific attribute.
 
     >>> from barriers import barriers
-    >>> checks = barriers(False).opt @ globals()
+    >>> checks = barriers(False) @ globals() >> 'unsafe'
 
     Note that in the example below, the decorator has no effect on the original
-    function ``f``. However, the function ``f.opt`` corresponds to the
+    function ``f``. However, the function ``f.unsafe`` corresponds to the
     transformed version of ``f``.
 
     >>> def g(x, y):
@@ -299,8 +295,13 @@ class barriers: # pylint: disable=too-few-public-methods
     Traceback (most recent call last):
       ...
     ValueError: inputs must be nonnegative
-    >>> f.opt(-1, -2)
+    >>> f.unsafe(-1, -2)
     -3
+
+    The ``<<`` operator (corresponding to the :obj:`__lshift__` method) behaves
+    in a complementary manner. After this method has been invoked, the decorater
+    transforms a decorated function but preserves the original function under
+    the specified attribute.
     """
     def __init__(
             self: barriers,
@@ -345,32 +346,6 @@ class barriers: # pylint: disable=too-few-public-methods
         # trees of functions.
         self._namespace = {}
 
-    def __getattr__(self: barriers, attribute: str) -> barriers:
-        """
-        Set the attribute (of decorated function objects) under which the
-        transformed versions of those functions should be stored.
-
-        >>> from barriers import barriers
-        >>> checks = barriers(False).opt @ globals()
-        >>> @checks
-        ... def f(x: int, y: int) -> int:
-        ...
-        ...     checks
-        ...     if x < 0 or y < 0:
-        ...         raise ValueError('inputs must be nonnegative')
-        ...
-        ...     return x + y
-        ...
-        >>> f(-1, -2)
-        Traceback (most recent call last):
-          ...
-        ValueError: inputs must be nonnegative
-        >>> f.opt(-1, -2)
-        -3
-        """
-        self._attribute = attribute
-        return self
-
     def __matmul__(self: barriers, namespace: dict) -> barriers:
         """
         Store internally the supplied namespace. This namespace is used during
@@ -410,6 +385,62 @@ class barriers: # pylint: disable=too-few-public-methods
         NameError: name 'example' is not defined
         """
         self._namespace = namespace
+        return self
+
+    def __rshift__(self: barriers, attribute: str) -> barriers:
+        """
+        Set the attribute (of decorated function objects) under which the
+        transformed versions of functions should be stored. After this method
+        has been invoked, this decorator will not change the decorated function
+        itself.
+
+        >>> from barriers import barriers
+        >>> checks = barriers(False) @ globals() >> 'unsafe'
+        >>> @checks
+        ... def f(x: int, y: int) -> int:
+        ...
+        ...     checks
+        ...     if x < 0 or y < 0:
+        ...         raise ValueError('inputs must be nonnegative')
+        ...
+        ...     return x + y
+        ...
+        >>> f(-1, -2)
+        Traceback (most recent call last):
+          ...
+        ValueError: inputs must be nonnegative
+        >>> f.unsafe(-1, -2)
+        -3
+        """
+        self._attribute = (True, attribute)
+        return self
+
+    def __lshift__(self: barriers, attribute: str) -> barriers:
+        """
+        Set the attribute (of decorated function objects) under which the
+        original versions of functions should be stored. After this method has
+        been invoked, this decorator will always store the original (unmodified)
+        function under the specified attribute.
+
+        >>> from barriers import barriers
+        >>> checks = barriers(False) @ globals() << 'safe'
+        >>> @checks
+        ... def f(x: int, y: int) -> int:
+        ...
+        ...     checks
+        ...     if x < 0 or y < 0:
+        ...         raise ValueError('inputs must be nonnegative')
+        ...
+        ...     return x + y
+        ...
+        >>> f(-1, -2)
+        -3
+        >>> f.safe(-1, -2)
+        Traceback (most recent call last):
+          ...
+        ValueError: inputs must be nonnegative
+        """
+        self._attribute = (False, attribute)
         return self
 
     def _marker(self: barriers, s: ast.Stmt, namespace: dict) -> bool:
@@ -515,12 +546,23 @@ class barriers: # pylint: disable=too-few-public-methods
             self._disabled = False
             raise e
 
-        # Store the transformed function under an attribute of the function
-        # object (if such an attribute has been specified) and return the
-        # function itself its original (unmodified) form.
-        if self._attribute is not None:
-            setattr(function, self._attribute, namespace[function.__name__])
-            return function
+        # Either store the transformed function under an attribute of the
+        # function object and return the function unmodified, or store
+        # the unmodified function as an attribute of the transformed function
+        # (in which case the transformed function is returned, as usual).
+        if isinstance(self._attribute, tuple):
+            if self._attribute[0]:
+                setattr(
+                    function,
+                    self._attribute[1],
+                    namespace[function.__name__]
+                )
+                return function
+
+            # Store unmodified function as an attribute of the transformed
+            # function. The transformed function will be returned by the
+            # last statement in this method (as is the default behavior).
+            setattr(namespace[function.__name__], self._attribute[1], function)
 
         return namespace[function.__name__]
 
@@ -544,11 +586,6 @@ class barriers: # pylint: disable=too-few-public-methods
         -3
         """
         return self._transform(function, self._namespace)
-
-    def __getattr__(self, attr):
-        if attr == '__wrapped__':
-            raise AttributeError
-        return self.__getattribute__(attr)
 
 if __name__ == '__main__':
     doctest.testmod() # pragma: no cover
