@@ -37,7 +37,7 @@ Examples
 ^^^^^^^^
 
 .. |barriers| replace:: ``barriers``
-.. _barriers: https://barriers.readthedocs.io/en/1.0.0/_source/barriers.html#barriers.barriers.barriers
+.. _barriers: https://barriers.readthedocs.io/en/1.1.0/_source/barriers.html#barriers.barriers.barriers
 
 .. |globals| replace:: ``globals``
 .. _globals: https://docs.python.org/3/library/functions.html#globals
@@ -113,7 +113,7 @@ Given the above definitions, it is now possible to introduce named markers such 
     >>> f(-1, -2)
     -3
 
-Many additional details and examples are presented in the `documentation <https://barriers.readthedocs.io/en/1.0.0>`__.
+Many additional details and examples are presented in the `documentation <https://barriers.readthedocs.io/en/1.1.0>`__.
 
 Development
 -----------
@@ -140,7 +140,7 @@ Alternatively, all unit tests are included in the module itself and can be execu
 
     python src/barriers/barriers.py -v
 
-Style conventions are enforced using `Pylint <https://pylint.pycqa.org>`__::
+Style conventions are enforced using `Pylint <https://pylint.readthedocs.io>`__::
 
     python -m pip install .[lint]
     python -m pylint src/barriers
