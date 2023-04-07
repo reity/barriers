@@ -24,11 +24,15 @@ Python decorators for including/excluding type checks, value/bounds checks, and 
 
 Installation and Usage
 ----------------------
-This library is available as a `package on PyPI <https://pypi.org/project/barriers>`__::
+This library is available as a `package on PyPI <https://pypi.org/project/barriers>`__:
+
+.. code-block:: bash
 
     python -m pip install barriers
 
-The library can be imported in the usual ways::
+The library can be imported in the usual ways:
+
+.. code-block:: bash
 
     import barriers
     from barriers import barriers
@@ -42,7 +46,9 @@ Examples
 .. |globals| replace:: ``globals``
 .. _globals: https://docs.python.org/3/library/functions.html#globals
 
-Consider the function below. The body of this function contains a code block that raises an exception if either of the two inputs is a negative integer::
+Consider the function below. The body of this function contains a code block that raises an exception if either of the two inputs is a negative integer:
+
+.. code-block:: python
 
     >>> def f(x: int, y: int) -> int:
     ...
@@ -58,7 +64,9 @@ Consider the function below. The body of this function contains a code block tha
       ...
     ValueError: inputs must be nonnegative
 
-An instance of the |barriers|_ class should normally be introduced near the top of a Python module::
+An instance of the |barriers|_ class should normally be introduced near the top of a Python module:
+
+.. code-block:: python
 
     >>> example = barriers(False) @ globals() # Remove marked code blocks (i.e., "disable barriers").
 
@@ -68,7 +76,9 @@ The |barriers|_ instance ``example`` defined above is a decorator that transform
 
 * The notation ``@ globals()`` ensures that the namespace returned by |globals|_ is used when compiling the abstract syntax trees of transformed functions.
 
-A statement can be designated for automatic removal by placing a marker -- in this case, the ``example`` variable -- on the line directly above that statement. Note that in the body of the function ``f`` defined below, the ``if`` block is immediately preceded by a line that contains the variable ``example``::
+A statement can be designated for automatic removal by placing a marker -- in this case, the ``example`` variable -- on the line directly above that statement. Note that in the body of the function ``f`` defined below, the ``if`` block is immediately preceded by a line that contains the variable ``example``:
+
+.. code-block:: python
 
     >>> @example
     ... def f(x: int, y: int) -> int:
@@ -79,19 +89,25 @@ A statement can be designated for automatic removal by placing a marker -- in th
     ...
     ...     return x + y
 
-The decorator ``@example`` automatically removes the ``if`` block in the function above. As a result, the function does not raise an exception when it is applied to negative inputs::
+The decorator ``@example`` automatically removes the ``if`` block in the function above. As a result, the function does not raise an exception when it is applied to negative inputs:
+
+.. code-block:: python
 
     >>> f(1, 2)
     3
     >>> f(-1, -2)
     -3
 
-It is also possible to define and use individually named markers (which are created as attributes of the |barriers|_ instance)::
+It is also possible to define and use individually named markers (which are created as attributes of the |barriers|_ instance):
+
+.. code-block:: python
 
     >>> from barriers import barriers
     >>> checks = barriers(types=True, bounds=False) @ globals()
 
-Given the above definitions, it is now possible to introduce named markers such as those in the example below. When a marker definition has been assigned ``True``, the statements immediately below that named marker **are not removed** (*i.e.*, the marked barrier statements are enabled). When a marker definition has been assigned ``False``, the corresponding marked statements **are removed**::
+Given the above definitions, it is now possible to introduce named markers such as those in the example below. When a marker definition has been assigned ``True``, the statements immediately below that named marker **are not removed** (*i.e.*, the marked barrier statements are enabled). When a marker definition has been assigned ``False``, the corresponding marked statements **are removed**:
+
+.. code-block:: python
 
     >>> @checks
     ... def f(x: int, y: int) -> int:
@@ -117,13 +133,17 @@ Many additional details and examples are presented in the `documentation <https:
 
 Development
 -----------
-All installation and development dependencies are fully specified in ``pyproject.toml``. The ``project.optional-dependencies`` object is used to `specify optional requirements <https://peps.python.org/pep-0621>`__ for various development tasks. This makes it possible to specify additional options (such as ``docs``, ``lint``, and so on) when performing installation using `pip <https://pypi.org/project/pip>`__::
+All installation and development dependencies are fully specified in ``pyproject.toml``. The ``project.optional-dependencies`` object is used to `specify optional requirements <https://peps.python.org/pep-0621>`__ for various development tasks. This makes it possible to specify additional options (such as ``docs``, ``lint``, and so on) when performing installation using `pip <https://pypi.org/project/pip>`__:
+
+.. code-block:: bash
 
     python -m pip install .[docs,lint]
 
 Documentation
 ^^^^^^^^^^^^^
-The documentation can be generated automatically from the source files using `Sphinx <https://www.sphinx-doc.org>`__::
+The documentation can be generated automatically from the source files using `Sphinx <https://www.sphinx-doc.org>`__:
+
+.. code-block:: bash
 
     python -m pip install .[docs]
     cd docs
@@ -131,16 +151,22 @@ The documentation can be generated automatically from the source files using `Sp
 
 Testing and Conventions
 ^^^^^^^^^^^^^^^^^^^^^^^
-All unit tests are executed and their coverage is measured when using `pytest <https://docs.pytest.org>`__ (see the ``pyproject.toml`` file for configuration details)::
+All unit tests are executed and their coverage is measured when using `pytest <https://docs.pytest.org>`__ (see the ``pyproject.toml`` file for configuration details):
+
+.. code-block:: bash
 
     python -m pip install .[test]
     python -m pytest
 
-Alternatively, all unit tests are included in the module itself and can be executed using `doctest <https://docs.python.org/3/library/doctest.html>`__::
+Alternatively, all unit tests are included in the module itself and can be executed using `doctest <https://docs.python.org/3/library/doctest.html>`__:
+
+.. code-block:: bash
 
     python src/barriers/barriers.py -v
 
-Style conventions are enforced using `Pylint <https://pylint.readthedocs.io>`__::
+Style conventions are enforced using `Pylint <https://pylint.readthedocs.io>`__:
+
+.. code-block:: bash
 
     python -m pip install .[lint]
     python -m pylint src/barriers
@@ -155,20 +181,28 @@ The version number format for this library and the changes to the library associ
 
 Publishing
 ^^^^^^^^^^
-This library can be published as a `package on PyPI <https://pypi.org/project/barriers>`__ by a package maintainer. First, install the dependencies required for packaging and publishing::
+This library can be published as a `package on PyPI <https://pypi.org/project/barriers>`__ by a package maintainer. First, install the dependencies required for packaging and publishing:
+
+.. code-block:: bash
 
     python -m pip install .[publish]
 
-Ensure that the correct version number appears in ``pyproject.toml``, and that any links in this README document to the Read the Docs documentation of this package (or its dependencies) have appropriate version numbers. Also ensure that the Read the Docs project for this library has an `automation rule <https://docs.readthedocs.io/en/stable/automation-rules.html>`__ that activates and sets as the default all tagged versions. Create and push a tag for this version (replacing ``?.?.?`` with the version number)::
+Ensure that the correct version number appears in ``pyproject.toml``, and that any links in this README document to the Read the Docs documentation of this package (or its dependencies) have appropriate version numbers. Also ensure that the Read the Docs project for this library has an `automation rule <https://docs.readthedocs.io/en/stable/automation-rules.html>`__ that activates and sets as the default all tagged versions. Create and push a tag for this version (replacing ``?.?.?`` with the version number):
+
+.. code-block:: bash
 
     git tag ?.?.?
     git push origin ?.?.?
 
-Remove any old build/distribution files. Then, package the source into a distribution archive::
+Remove any old build/distribution files. Then, package the source into a distribution archive:
+
+.. code-block:: bash
 
     rm -rf build dist src/*.egg-info
     python -m build --sdist --wheel .
 
-Finally, upload the package distribution archive to `PyPI <https://pypi.org>`__::
+Finally, upload the package distribution archive to `PyPI <https://pypi.org>`__:
+
+.. code-block:: bash
 
     python -m twine upload dist/*
