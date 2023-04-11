@@ -46,17 +46,22 @@ Examples
 .. |globals| replace:: ``globals``
 .. _globals: https://docs.python.org/3/library/functions.html#globals
 
-Consider the function below. The body of this function contains a code block that raises an exception if either of the two inputs is a negative integer:
+Consider the function below (defined within a file ``f.py``). The body of this function contains a code block that raises an exception if either of the two inputs is a negative integer:
 
 .. code-block:: python
 
-    >>> def f(x: int, y: int) -> int:
-    ...
-    ...     if x < 0 or y < 0:
-    ...         raise ValueError('inputs must be nonnegative')
-    ...
-    ...     return x + y
-    ...
+    def f(x: int, y: int) -> int:
+
+        if x < 0 or y < 0:
+            raise ValueError('inputs must be nonnegative')
+
+        return x + y
+
+We can import the module above and invoke the function to observe its behavior:
+
+.. code-block:: python
+
+    >>> from f import f
     >>> f(1, 2)
     3
     >>> f(-1, -2)
@@ -64,10 +69,11 @@ Consider the function below. The body of this function contains a code block tha
       ...
     ValueError: inputs must be nonnegative
 
-An instance of the |barriers|_ class should normally be introduced near the top of a Python module:
+An instance of the |barriers|_ class should normally be introduced near the top of a Python module using a pair of statements such as those below:
 
 .. code-block:: python
 
+    >>> from barriers import barriers
     >>> example = barriers(False) @ globals() # Remove marked code blocks (i.e., "disable barriers").
 
 The |barriers|_ instance ``example`` defined above is a decorator that transforms any decorated function by removing any designated code blocks in the body of that function.
@@ -76,23 +82,27 @@ The |barriers|_ instance ``example`` defined above is a decorator that transform
 
 * The notation ``@ globals()`` ensures that the namespace returned by |globals|_ is used when compiling the abstract syntax trees of transformed functions.
 
-A statement can be designated for automatic removal by placing a marker -- in this case, the ``example`` variable -- on the line directly above that statement. Note that in the body of the function ``f`` defined below, the ``if`` block is immediately preceded by a line that contains the variable ``example``:
+Consider the modified version of ``f.py`` below. A statement can be designated for automatic removal by placing a marker -- in this case, the ``example`` variable -- on the line directly above that statement. Note that in the body of the function ``f`` defined below, the ``if`` block is immediately preceded by a line that contains the variable ``example``:
 
 .. code-block:: python
 
-    >>> @example
-    ... def f(x: int, y: int) -> int:
-    ...
-    ...     example
-    ...     if x < 0 or y < 0:
-    ...         raise ValueError('inputs must be nonnegative')
-    ...
-    ...     return x + y
+    from barriers import barriers
+    example = barriers(False) @ globals()
+
+    @example
+    def f(x: int, y: int) -> int:
+
+        example
+        if x < 0 or y < 0:
+            raise ValueError('inputs must be nonnegative')
+
+        return x + y
 
 The decorator ``@example`` automatically removes the ``if`` block in the function above. As a result, the function does not raise an exception when it is applied to negative inputs:
 
 .. code-block:: python
 
+    >>> from f import f
     >>> f(1, 2)
     3
     >>> f(-1, -2)
@@ -105,23 +115,31 @@ It is also possible to define and use individually named markers (which are crea
     >>> from barriers import barriers
     >>> checks = barriers(types=True, bounds=False) @ globals()
 
-Given the above definitions, it is now possible to introduce named markers such as those in the example below. When a marker definition has been assigned ``True``, the statements immediately below that named marker **are not removed** (*i.e.*, the marked barrier statements are enabled). When a marker definition has been assigned ``False``, the corresponding marked statements **are removed**:
+Given the above definitions, it is possible to introduce named markers such as those in the variant of ``f.py`` presented below. When a marker definition has been assigned ``True``, the statements immediately below that named marker **are not removed** (*i.e.*, the marked barrier statements are enabled). When a marker definition has been assigned ``False``, the corresponding marked statements **are removed**:
 
 .. code-block:: python
 
-    >>> @checks
-    ... def f(x: int, y: int) -> int:
-    ...
-    ...     checks.types
-    ...     if not isinstance(x, int) and not isinstance(y, int):
-    ...         raise TypeError('inputs must be integers')
-    ...
-    ...     checks.bounds
-    ...     if x < 0 or y < 0:
-    ...         raise ValueError('inputs must be nonnegative')
-    ...
-    ...     return x + y
-    ...
+    from barriers import barriers
+    checks = barriers(types=True, bounds=False) @ globals()
+
+    @checks
+    def f(x: int, y: int) -> int:
+    
+        checks.types
+        if not isinstance(x, int) and not isinstance(y, int):
+            raise TypeError('inputs must be integers')
+    
+        checks.bounds
+        if x < 0 or y < 0:
+            raise ValueError('inputs must be nonnegative')
+    
+        return x + y
+
+The described behavior can be observed when evaluating the function:
+
+.. code-block:: python
+
+    >>> from f import f
     >>> f('a', 'b')
     Traceback (most recent call last):
       ...
