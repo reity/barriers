@@ -564,7 +564,10 @@ class barriers: # pylint: disable=too-few-public-methods
             # last statement in this method (as is the default behavior).
             setattr(namespace[function.__name__], self._attribute[1], function)
 
-        return namespace[function.__name__]
+        result = namespace[function.__name__]
+        result.__name__ = function.__name__ # Preserve original function's name.
+        result.__doc__ = function.__doc__ # Preserve original function's docstring.
+        return result
 
     def __call__(self: barriers, function: Callable) -> Callable:
         """
