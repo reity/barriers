@@ -1,6 +1,9 @@
 name: lint-test-cover-docs
 on:
-  push
+  push:
+    branches:
+      - '**'
+  workflow_call: # If invoked by build-publish-sign-release workflow.
 jobs:
   lint_test_cover_docs:
     runs-on: ubuntu-latest
