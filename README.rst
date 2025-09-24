@@ -6,7 +6,7 @@ Python decorators for including/excluding type checks, value/bounds checks, and 
 
 |pypi| |readthedocs| |actions| |coveralls|
 
-.. |pypi| image:: https://badge.fury.io/py/barriers.svg
+.. |pypi| image:: https://badge.fury.io/py/barriers.svg#
    :target: https://badge.fury.io/py/barriers
    :alt: PyPI version and link.
 
@@ -14,7 +14,7 @@ Python decorators for including/excluding type checks, value/bounds checks, and 
    :target: https://barriers.readthedocs.io/en/latest/?badge=latest
    :alt: Read the Docs documentation status.
 
-.. |actions| image:: https://github.com/reity/barriers/workflows/lint-test-cover-docs/badge.svg
+.. |actions| image:: https://github.com/reity/barriers/workflows/lint-test-cover-docs/badge.svg#
    :target: https://github.com/reity/barriers/actions/workflows/lint-test-cover-docs.yml
    :alt: GitHub Actions status.
 
@@ -30,7 +30,7 @@ This library is available as a `package on PyPI <https://pypi.org/project/barrie
 
     python -m pip install barriers
 
-The library can be imported in the usual ways:
+The library can be imported in the usual manner:
 
 .. code-block:: python
 
@@ -41,7 +41,7 @@ Examples
 ^^^^^^^^
 
 .. |barriers| replace:: ``barriers``
-.. _barriers: https://barriers.readthedocs.io/en/1.1.0/_source/barriers.html#barriers.barriers.barriers
+.. _barriers: https://barriers.readthedocs.io/en/2.0.0/_source/barriers.html#barriers.barriers.barriers
 
 .. |globals| replace:: ``globals``
 .. _globals: https://docs.python.org/3/library/functions.html#globals
@@ -147,7 +147,7 @@ The described behavior can be observed when evaluating the function:
     >>> f(-1, -2)
     -3
 
-Many additional details and examples are presented in the `documentation <https://barriers.readthedocs.io/en/1.1.0>`__.
+Many additional details and examples are presented in the `documentation <https://barriers.readthedocs.io/en/2.0.0>`__.
 
 Development
 -----------
@@ -155,7 +155,7 @@ All installation and development dependencies are fully specified in ``pyproject
 
 .. code-block:: bash
 
-    python -m pip install .[docs,lint]
+    python -m pip install ".[docs,lint]"
 
 Documentation
 ^^^^^^^^^^^^^
@@ -163,7 +163,7 @@ The documentation can be generated automatically from the source files using `Sp
 
 .. code-block:: bash
 
-    python -m pip install .[docs]
+    python -m pip install ".[docs]"
     cd docs
     sphinx-apidoc -f -E --templatedir=_templates -o _source .. && make html
 
@@ -173,7 +173,7 @@ All unit tests are executed and their coverage is measured when using `pytest <h
 
 .. code-block:: bash
 
-    python -m pip install .[test]
+    python -m pip install ".[test]"
     python -m pytest
 
 Alternatively, all unit tests are included in the module itself and can be executed using `doctest <https://docs.python.org/3/library/doctest.html>`__:
@@ -186,7 +186,7 @@ Style conventions are enforced using `Pylint <https://pylint.readthedocs.io>`__:
 
 .. code-block:: bash
 
-    python -m pip install .[lint]
+    python -m pip install ".[lint]"
     python -m pylint src/barriers
 
 Contributions
